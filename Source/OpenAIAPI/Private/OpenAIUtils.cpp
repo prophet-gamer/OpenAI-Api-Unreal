@@ -5,6 +5,33 @@
 #include "OpenAIDefinitions.h"
 #include "OpenAIAPI.h"
 #include "Modules/ModuleManager.h"
+#include "OpenAICallRealtime.h"
+
+UOpenAICallRealtime* UOpenAIUtils::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice)
+{
+    return UOpenAICallRealtime::OpenAICallRealtime(Instructions, Voice);
+}
+
+FString UOpenAIUtils::GetVoiceString(EOAOpenAIVoices Voice)
+{
+    switch (Voice)
+    {
+    case EOAOpenAIVoices::ALLOY:
+        return TEXT("alloy");
+    case EOAOpenAIVoices::ECHO:
+        return TEXT("echo");
+    case EOAOpenAIVoices::FABLE:
+        return TEXT("fable");
+    case EOAOpenAIVoices::ONYX:
+        return TEXT("onyx");
+    case EOAOpenAIVoices::NOVA:
+        return TEXT("nova");
+    case EOAOpenAIVoices::SHIMMER:
+        return TEXT("shimmer");
+    default:
+        return TEXT("alloy"); // Default voice
+    }
+}
 
 void UOpenAIUtils::setOpenAIApiKey(FString apiKey)
 {
@@ -38,7 +65,7 @@ FString UOpenAIUtils::GetEnvironmentVariable(FString key)
 	result = FWindowsPlatformMisc::GetEnvironmentVariable(*key);
 #endif
 #if PLATFORM_MAC
-	result = FApplePlatformMisc::GetEnvironmentVariable(*key); 
+	result = FApplePlatformMisc::GetEnvironmentVariable(*key);
 #endif
 
 #if PLATFORM_LINUX
@@ -82,7 +109,7 @@ float UOpenAIUtils::HDVectorCosineSimilaritySIMD(const FHighDimensionalVector& A
 float UOpenAIUtils::HDVectorDotProduct(const FHighDimensionalVector& A, const FHighDimensionalVector& B)
 {
 	check(A.Components.Num() == B.Components.Num());
-        
+
 	float Sum = 0.0f;
 	for (int32 i = 0; i < A.Components.Num(); i++)
 	{

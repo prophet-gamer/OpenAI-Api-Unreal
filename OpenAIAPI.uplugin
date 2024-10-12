@@ -21,8 +21,15 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Mac",
+				"Linux",
 				"Android"
 			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "AudioCapture",
+			"Enabled": true
 		}
 	]
 }

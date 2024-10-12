@@ -6,11 +6,21 @@
 #include "Misc/DateTime.h"
 #include "OpenAIDefinitions.generated.h"
 
+UENUM(BlueprintType)
+enum class EOAOpenAIVoices : uint8
+{
+    ALLOY = 0 UMETA(DisplayName = "Alloy"),
+    ECHO = 1 UMETA(DisplayName = "Echo"),
+    FABLE = 2 UMETA(DisplayName = "Fable"),
+    ONYX = 3 UMETA(DisplayName = "Onyx"),
+    NOVA = 4 UMETA(DisplayName = "Nova"),
+    SHIMMER = 5 UMETA(DisplayName = "Shimmer")
+};
 
 UENUM(BlueprintType)
 enum class EOACompletionsEngineType : uint8
 {
-	
+
 	DAVINCI = 0 UMETA(ToolTip = "Davinci is the most capable test engine and can perform any task the other models can perform and often with less instruction."),
 	CURIE = 1 UMETA(ToolTip = "Curie is extremely powerful, yet very fast. While Davinci is stronger when it comes to analyzing complicated text, Curie is quite capable for many nuanced tasks like sentiment classification and summarization. Curie is also quite good at answering questions and performing Q&A and as a general service chatbot."),
 	BABBAGE = 2 UMETA(ToolTip = "Babbage can perform straightforward tasks like simple classification. It�s also quite capable when it comes to Semantic Search ranking how well documents match up with search queries."),
@@ -123,7 +133,7 @@ struct FCompletion
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "OpenAI")
 		int32 index = 0;
-	
+
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "OpenAI")
 		FString finishReason = "";
@@ -159,7 +169,7 @@ class OpenAIValueMapping
 {
 public:
 	OpenAIValueMapping();
-	
+
 	TMap<EOACompletionsEngineType, FString> engineTypes;
 	TMap<EOAImageSize, FString> imageSizes;
 };
@@ -226,7 +236,7 @@ struct FChatSettings
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "OpenAI")
 	EOAChatEngineType model = EOAChatEngineType::GPT_4;
-	
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "OpenAI")
 	TArray<FChatLog> messages;
 
@@ -239,7 +249,7 @@ struct FChatSettings
 /*
 *Create speech
 POST
- 
+
 https://api.openai.com/v1/audio/speech
 
 Generates audio from the input text.
@@ -295,7 +305,7 @@ struct FSpeechSettings
 /*
 * Create translation
 POST
- 
+
 https://api.openai.com/v1/audio/translations
 
 Translates audio into English.
@@ -374,13 +384,13 @@ USTRUCT(BlueprintType)
 struct FHighDimensionalVector
 {
 	GENERATED_USTRUCT_BODY();
-	
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "OpenAI")
 	TArray<float> Components;
 
 	FHighDimensionalVector()
 	{
-		Components = TArray<float>(); 
+		Components = TArray<float>();
 	};
 	FHighDimensionalVector(int32 Dimension)
 	{

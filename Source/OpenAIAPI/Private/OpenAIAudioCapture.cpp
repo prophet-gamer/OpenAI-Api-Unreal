@@ -1,11 +1,16 @@
 #include "OpenAIAudioCapture.h"
 
-UOpenAIAudioCapture::UOpenAIAudioCapture() : UAudioCaptureComponent()
+UOpenAIAudioCapture::UOpenAIAudioCapture(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
 {
     PrimaryComponentTick.bCanEverTick = false;
-    // Set the desired audio settings
-    SampleRate = 24000; // OpenAI Realtime API expects 24kHz
     NumChannels = 1;    // Mono audio
+}
+
+bool UOpenAIAudioCapture::Init(int32& SampleRate)
+{
+    SampleRate = 24000;  // Set the sample rate to 24kHz
+    return Super::Init(SampleRate);  // Call the parent class Init
 }
 
 int32 UOpenAIAudioCapture::OnGenerateAudio(float* OutAudio, int32 NumSamples)
@@ -16,5 +21,7 @@ int32 UOpenAIAudioCapture::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 
     // Broadcast the captured audio buffer
     OnAudioBufferCaptured.Broadcast(AudioBuffer);
+
+    // Return the number of samples generated
     return NumSamples;
 }

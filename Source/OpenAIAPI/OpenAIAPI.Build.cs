@@ -40,7 +40,10 @@ public class OpenAIAPI : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+			  "Synthesis",
+				"AudioMixer",
 				"Slate",
+				"InputCore",
 				"AudioCapture",
 				"SlateCore",
 				"Json",

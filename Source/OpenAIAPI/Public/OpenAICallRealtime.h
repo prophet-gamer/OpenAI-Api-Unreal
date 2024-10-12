@@ -22,6 +22,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FOnAudioBufferReceived,
     const TArray<float>&, AudioBuffer);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FOnAudioDataReceived,
+    const TArray<uint8>&, AudioData);
+
 UCLASS()
 class OPENAIAPI_API UOpenAICallRealtime : public UBlueprintAsyncActionBase
 {
@@ -34,6 +38,9 @@ public:
     // Static factory function
     UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "OpenAI")
     static UOpenAICallRealtime* OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice);
+
+    UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
+    FOnAudioDataReceived OnAudioDataReceived;
 
     // Override Activate function
     virtual void Activate() override;

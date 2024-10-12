@@ -8,11 +8,11 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "AudioDevice.h"
 #include "Async/Async.h"
+#include "Kismet/GameplayStatics.h"
 
 UOpenAICallRealtime::UOpenAICallRealtime()
 {
     AudioCaptureComponent = nullptr;
-    GeneratedSoundWave = nullptr;
     AudioComponent = nullptr;
     UE_LOG(LogTemp, Log, TEXT("UOpenAICallRealtime constructed"));
 }
@@ -82,25 +82,6 @@ void UOpenAICallRealtime::StopRealtimeSession()
             WebSocket->Close();
             WebSocket.Reset();
             UE_LOG(LogTemp, Log, TEXT("WebSocket closed and reset"));
-        }
-
-        // Stop and destroy audio component
-        if (AudioComponent)
-        {
-            UE_LOG(LogTemp, Log, TEXT("Stopping and destroying AudioComponent"));
-            AudioComponent->Stop();
-            AudioComponent->DestroyComponent();
-            AudioComponent = nullptr;
-            UE_LOG(LogTemp, Log, TEXT("AudioComponent stopped, destroyed, and nullified"));
-        }
-
-        // Clear generated sound wave
-        if (GeneratedSoundWave)
-        {
-            UE_LOG(LogTemp, Log, TEXT("Removing GeneratedSoundWave from root"));
-            GeneratedSoundWave->RemoveFromRoot();
-            GeneratedSoundWave = nullptr;
-            UE_LOG(LogTemp, Log, TEXT("GeneratedSoundWave removed from root and nullified"));
         }
 
         UE_LOG(LogTemp, Log, TEXT("Realtime session stopped successfully"));
@@ -192,22 +173,6 @@ void UOpenAICallRealtime::OnWebSocketConnected()
 
     SendRealtimeEvent(ResponseCreateEvent);
     UE_LOG(LogTemp, Log, TEXT("Response create event sent"));
-
-    // Initialize audio playback components
-    GeneratedSoundWave = NewObject<USoundWaveProcedural>(this);
-
-    GeneratedSoundWave->SetSampleRate(24000); // OpenAI API uses 24kHz
-    GeneratedSoundWave->NumChannels = 1;    // Mono audio
-    GeneratedSoundWave->Duration = INDEFINITELY_LOOPING_DURATION;
-    GeneratedSoundWave->bLooping = false;
-    GeneratedSoundWave->bProcedural = true;
-
-    AudioComponent = NewObject<UAudioComponent>(this);
-    AudioComponent->bAutoActivate = false;
-    AudioComponent->SetSound(GeneratedSoundWave);
-    AudioComponent->RegisterComponent();
-    AudioComponent->Play();
-    UE_LOG(LogTemp, Log, TEXT("Audio playback components initialized and started"));
 }
 
 void UOpenAICallRealtime::OnWebSocketConnectionError(const FString& Error)
@@ -230,7 +195,13 @@ void UOpenAICallRealtime::OnWebSocketClosed(int32 StatusCode,
 
 void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
 {
-    UE_LOG(LogTemp, Log, TEXT("WebSocket Message Received: %s"), *Message);
+    FString TruncatedMessage = Message.Left(120);
+    if (Message.Len() > 120)
+    {
+        TruncatedMessage += TEXT("...");
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("WebSocket Message Received: %s"), *TruncatedMessage);
     // Parse and handle incoming messages
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<>> Reader =
@@ -258,7 +229,10 @@ void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
             FBase64::Decode(AudioBase64, AudioData);
             UE_LOG(LogTemp, Log, TEXT("Audio Delta received, size: %d bytes"), AudioData.Num());
 
-            PlayAudioData(AudioData);
+            AsyncTask(ENamedThreads::GameThread, [this, AudioData]()
+            {
+                PlayAudioData(AudioData);
+            });
         }
         else if (EventType == TEXT("error"))
         {
@@ -341,15 +315,8 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
 
 void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)
 {
-    UE_LOG(LogTemp, Log, TEXT("Playing Audio Data, size: %d bytes"), AudioData.Num());
-    if (GeneratedSoundWave)
-    {
-        // Enqueue the audio data for playback
-        GeneratedSoundWave->QueueAudio(AudioData.GetData(), AudioData.Num());
-        UE_LOG(LogTemp, Log, TEXT("Audio data queued for playback"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("GeneratedSoundWave is null, cannot play audio data"));
-    }
+    UE_LOG(LogTemp, Log, TEXT("Broadcasting Audio Data, size: %d bytes"), AudioData.Num());
+
+    // Broadcast the audio data to Blueprints
+    OnAudioDataReceived.Broadcast(AudioData);
 }

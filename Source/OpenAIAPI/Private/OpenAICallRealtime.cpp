@@ -106,6 +106,8 @@ void UOpenAICallRealtime::StartRealtimeSession()
         AudioCaptureComponent->RegisterComponent();
         UE_LOG(LogTemp, Log, TEXT("AudioCaptureComponent created and registered"));
 
+        AudioCaptureComponent->Activate(false);
+
         // Bind the audio buffer captured event
         AudioCaptureComponent->OnAudioBufferCaptured.AddDynamic(
             this, &UOpenAICallRealtime::OnAudioBufferCaptured);
@@ -147,6 +149,7 @@ void UOpenAICallRealtime::StopRealtimeSession()
     if (IsValid(AudioCaptureComponent))
     {
         AudioCaptureComponent->StopCapturing();
+        AudioCaptureComponent->DestroyAudioCapture();
         AudioCaptureComponent->OnAudioBufferCaptured.RemoveDynamic(this, &UOpenAICallRealtime::OnAudioBufferCaptured);
         AudioCaptureComponent->DestroyComponent();
         AudioCaptureComponent = nullptr;

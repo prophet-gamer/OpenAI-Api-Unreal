@@ -6,43 +6,38 @@ UOpenAIAudioCapture::UOpenAIAudioCapture()
     PrimaryComponentTick.bCanEverTick = false;
     AudioCapture = nullptr;
     bIsCapturing = false;
+    bAutoActivate = true;
     UE_LOG(LogTemp, Log, TEXT("UOpenAIAudioCapture constructor called"));
 }
 
-void UOpenAIAudioCapture::BeginPlay()
+
+void UOpenAIAudioCapture::Activate(bool bReset)
 {
-    Super::BeginPlay();
+    UE_LOG(LogTemp, Log, TEXT("UOpenAIAudioCapture Activate called"));
+    Super::Activate(bReset);
 
-    // Create new Audio Capture instance
-    AudioCapture = NewObject<UAudioCapture>(this);
-    if (AudioCapture)
+    // Move initialization logic from BeginPlay to here
+    if (!AudioCapture)
     {
-        AudioCapture->AddGeneratorDelegate([this](const float* InAudio, int32 NumSamples) {
-            this->OnAudioGenerate(InAudio, NumSamples);
-        });
+        AudioCapture = NewObject<UAudioCapture>(this);
+        if (AudioCapture)
+        {
+            AudioCapture->AddGeneratorDelegate([this](const float* InAudio, int32 NumSamples) {
+                this->OnAudioGenerate(InAudio, NumSamples);
+            });
 
-        // Start capturing the audio
-        AudioCapture->OpenDefaultAudioStream();
-        StartCapturing();
-        UE_LOG(LogTemp, Log, TEXT("------------------->AudioCapture started from BeginPlay"));
+            // Start capturing the audio
+            AudioCapture->OpenDefaultAudioStream();
+            StartCapturing();
+            UE_LOG(LogTemp, Log, TEXT("-------------------> AudioCapture started from Activate"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to create AudioCapture object"));
+        }
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("AudioCapture is already created"));
     }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to create AudioCapture object"));
-    }
-}
-
-void UOpenAIAudioCapture::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-    StopCapturing();
-
-    if (AudioCapture)
-    {
-        AudioCapture->ConditionalBeginDestroy();
-        AudioCapture = nullptr;
-    }
-
-    Super::EndPlay(EndPlayReason);
 }
 
 void UOpenAIAudioCapture::StartCapturing()
@@ -51,6 +46,7 @@ void UOpenAIAudioCapture::StartCapturing()
     {
         AudioCapture->StartCapturingAudio();
         bIsCapturing = true;
+        UE_LOG(LogTemp, Log, TEXT("AudioCapture started"));
     } else {
         UE_LOG(LogTemp, Log, TEXT("AudioCapture is null or already capturing"));
     }
@@ -68,6 +64,18 @@ void UOpenAIAudioCapture::StopCapturing()
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("AudioCapture is null"));
+    }
+}
+
+void UOpenAIAudioCapture::DestroyAudioCapture() {
+    UE_LOG(LogTemp, Log, TEXT("DestroyAudioCapture called"));
+    if (AudioCapture)
+    {
+        AudioCapture->ConditionalBeginDestroy();
+        AudioCapture = nullptr;
+        UE_LOG(LogTemp, Log, TEXT("AudioCapture destroyed"));
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("AudioCapture is null"));
     }
 }
 

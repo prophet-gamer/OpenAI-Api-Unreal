@@ -16,8 +16,9 @@ class OPENAIAPI_API UOpenAIAudioCapture : public UActorComponent
 public:
     UOpenAIAudioCapture();
 
-    virtual void BeginPlay() override;
-    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void Activate(bool bReset) override;
+
+    void DestroyAudioCapture();
 
     UFUNCTION(BlueprintCallable, Category = "Audio")
     void StartCapturing();

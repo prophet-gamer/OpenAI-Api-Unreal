@@ -7,7 +7,7 @@
 #include "OpenAIDefinitions.h"
 #include "IWebSocket.h"
 #include "Components/AudioComponent.h"
-#include "AudioCaptureComponent.h"
+#include "OpenAIAudioCapture.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "OpenAICallRealtime.generated.h"
 

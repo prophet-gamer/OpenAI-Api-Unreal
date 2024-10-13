@@ -1,28 +1,36 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AudioCaptureComponent.h"
+#include "Components/ActorComponent.h"
+#include "AudioCapture.h"
+#include "Sound/SampleBufferIO.h"
 #include "OpenAIAudioCapture.generated.h"
 
-// Delegate for broadcasting captured audio buffer
-//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioBufferCaptured, const TArray<float>&, AudioBuffer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioBufferCaptured, const TArray<float>&, AudioBuffer);
 
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class OPENAIAPI_API UOpenAIAudioCapture : public UAudioCaptureComponent
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class OPENAIAPI_API UOpenAIAudioCapture : public UActorComponent
 {
     GENERATED_BODY()
 
 public:
-    UOpenAIAudioCapture(const FObjectInitializer& ObjectInitializer);
+    UOpenAIAudioCapture();
 
-    // Delegate to broadcast captured audio buffer
-    UPROPERTY(BlueprintAssignable, Category = "OpenAI|Audio")
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    UFUNCTION(BlueprintCallable, Category = "Audio")
+    void StartCapturing();
+
+    UFUNCTION(BlueprintCallable, Category = "Audio")
+    void StopCapturing();
+
+    UPROPERTY(BlueprintAssignable, Category = "Audio")
     FOnAudioBufferCaptured OnAudioBufferCaptured;
 
-protected:
-    virtual bool Init(int32& SampleRate) override;
-    virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
-
 private:
+    UAudioCapture* AudioCapture;
     TArray<float> AudioBuffer;
+
+    void OnAudioGenerate(const float* InAudio, int32 NumSamples);
 };

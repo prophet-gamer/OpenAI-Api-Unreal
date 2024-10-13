@@ -1,27 +1,66 @@
 #include "OpenAIAudioCapture.h"
+#include "Kismet/GameplayStatics.h"
 
-UOpenAIAudioCapture::UOpenAIAudioCapture(const FObjectInitializer& ObjectInitializer)
-    : Super(ObjectInitializer)
+UOpenAIAudioCapture::UOpenAIAudioCapture()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    NumChannels = 1;    // Mono audio
+    AudioCapture = nullptr;
 }
 
-bool UOpenAIAudioCapture::Init(int32& SampleRate)
+void UOpenAIAudioCapture::BeginPlay()
 {
-    SampleRate = 24000;  // Set the sample rate to 24kHz
-    return Super::Init(SampleRate);  // Call the parent class Init
+    Super::BeginPlay();
+
+    // Create new Audio Capture instance
+    AudioCapture = NewObject<UAudioCapture>();
+    AudioCapture->AddGeneratorDelegate([this](const float* InAudio, int32 NumSamples) {
+        this->OnAudioGenerate(InAudio, NumSamples);
+    });
+
+    // Start capturing the audio
+    AudioCapture->OpenDefaultAudioStream();
+    AudioCapture->StartCapturingAudio();
 }
 
-int32 UOpenAIAudioCapture::OnGenerateAudio(float* OutAudio, int32 NumSamples)
+void UOpenAIAudioCapture::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    // Copy the audio data to the buffer
-    AudioBuffer.SetNumUninitialized(NumSamples);
-    FMemory::Memcpy(AudioBuffer.GetData(), OutAudio, NumSamples * sizeof(float));
+    StopCapturing();
 
-    // Broadcast the captured audio buffer
-    OnAudioBufferCaptured.Broadcast(AudioBuffer);
+    if (AudioCapture)
+    {
+        AudioCapture->ConditionalBeginDestroy();
+        AudioCapture = nullptr;
+    }
 
-    // Return the number of samples generated
-    return NumSamples;
+    Super::EndPlay(EndPlayReason);
+}
+
+void UOpenAIAudioCapture::StartCapturing()
+{
+    if (AudioCapture)
+    {
+        AudioCapture->StartCapturingAudio();
+    }
+}
+
+void UOpenAIAudioCapture::StopCapturing()
+{
+    if (AudioCapture)
+    {
+        AudioCapture->StopCapturingAudio();
+    }
+}
+
+void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples)
+{
+    AudioBuffer.Append(InAudio, NumSamples);
+
+    // Create a copy of the buffer to broadcast
+    TArray<float> BufferCopy = AudioBuffer;
+
+    // Broadcast the captured audio data
+    OnAudioBufferCaptured.Broadcast(BufferCopy);
+
+    // Clear the buffer after broadcasting
+    AudioBuffer.Empty();
 }

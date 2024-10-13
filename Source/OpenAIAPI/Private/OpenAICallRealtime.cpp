@@ -92,17 +92,24 @@ void UOpenAICallRealtime::StartRealtimeSession()
 
     // Create and initialize the audio capture component
     AudioCaptureComponent = NewObject<UOpenAIAudioCapture>(this);
-    AudioCaptureComponent->RegisterComponent();
-    UE_LOG(LogTemp, Log, TEXT("AudioCaptureComponent created and registered"));
+    if (AudioCaptureComponent)
+    {
+        AudioCaptureComponent->RegisterComponent();
+        UE_LOG(LogTemp, Log, TEXT("AudioCaptureComponent created and registered"));
 
-    // Bind the audio buffer captured event
-    AudioCaptureComponent->OnAudioBufferCaptured.AddDynamic(
-        this, &UOpenAICallRealtime::OnAudioBufferCaptured);
-    UE_LOG(LogTemp, Log, TEXT("OnAudioBufferCaptured event bound"));
+        // Bind the audio buffer captured event
+        AudioCaptureComponent->OnAudioBufferCaptured.AddDynamic(
+            this, &UOpenAICallRealtime::OnAudioBufferCaptured);
+        UE_LOG(LogTemp, Log, TEXT("OnAudioBufferCaptured event bound"));
 
-    // Start capturing audio
-    AudioCaptureComponent->Start();
-    UE_LOG(LogTemp, Log, TEXT("Audio capture started"));
+        // Start capturing audio
+        AudioCaptureComponent->StartCapturing();
+        UE_LOG(LogTemp, Log, TEXT("Audio capture started"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to create AudioCaptureComponent"));
+    }
 }
 
 void UOpenAICallRealtime::StopRealtimeSession()
@@ -114,12 +121,11 @@ void UOpenAICallRealtime::StopRealtimeSession()
         // Stop capturing audio
         if (AudioCaptureComponent)
         {
-            UE_LOG(LogTemp, Log, TEXT("Stopping AudioCaptureComponent"));
-            AudioCaptureComponent->Stop();
-            AudioCaptureComponent->OnAudioBufferCaptured.RemoveAll(this);
-            AudioCaptureComponent->UnregisterComponent();
+            AudioCaptureComponent->StopCapturing();
+            AudioCaptureComponent->OnAudioBufferCaptured.RemoveDynamic(
+                this, &UOpenAICallRealtime::OnAudioBufferCaptured);
+            AudioCaptureComponent->DestroyComponent();
             AudioCaptureComponent = nullptr;
-            UE_LOG(LogTemp, Log, TEXT("AudioCaptureComponent stopped and nullified"));
         }
 
         // Close WebSocket connection

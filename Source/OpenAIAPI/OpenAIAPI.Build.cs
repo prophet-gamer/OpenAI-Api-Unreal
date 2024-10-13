@@ -29,7 +29,9 @@ public class OpenAIAPI : ModuleRules
 				"Core",
 				 "WebSockets",
 				 "AudioCapture",
-				 "SignalProcessing"
+				 "AudioCaptureCore",
+				 "SignalProcessing",
+				 	"AudioMixer",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -45,6 +47,7 @@ public class OpenAIAPI : ModuleRules
 				"Slate",
 				"InputCore",
 				"AudioCapture",
+				"AudioCaptureCore",
 				"SlateCore",
 				"Json",
 				"HTTP"

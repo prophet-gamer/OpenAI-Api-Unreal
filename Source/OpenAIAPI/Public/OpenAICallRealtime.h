@@ -97,7 +97,7 @@ private:
     void OnWebSocketMessage(const FString& Message);
 
     // Send event to OpenAI Realtime API
-    void SendRealtimeEvent(const TSharedPtr<FJsonObject>& Event);
+    void SendRealtimeEvent(const TSharedPtr<FJsonObject>& Event, bool isAudioStreamEvent = false);
 
     // Send audio data to OpenAI API
     void SendAudioDataToAPI(const TArray<float>& AudioBuffer);

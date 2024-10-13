@@ -274,8 +274,8 @@ void UOpenAICallRealtime::OnWebSocketClosed(int32 StatusCode,
 
 void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
 {
-    FString TruncatedMessage = Message.Left(120);
-    if (Message.Len() > 120)
+    FString TruncatedMessage = Message.Left(1200);
+    if (Message.Len() > 1200)
     {
         TruncatedMessage += TEXT("...");
     }
@@ -300,6 +300,11 @@ void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
             {
                   OnResponseReceived.Broadcast(TextDelta, true);
             });
+        }
+        else if (EventType == TEXT("response.audio_transcript.delta"))
+        {
+            FString AudioTranscriptDelta = JsonObject->GetStringField(TEXT("delta"));
+            UE_LOG(LogTemp, Log, TEXT("Audio Transcript Delta: %s"), *AudioTranscriptDelta);
         }
         else if (EventType == TEXT("response.audio.delta"))
         {
@@ -331,20 +336,22 @@ void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
 }
 
 void UOpenAICallRealtime::SendRealtimeEvent(
-    const TSharedPtr<FJsonObject>& Event)
+    const TSharedPtr<FJsonObject>& Event, bool isAudioStreamEvent)
 {
     FString EventString;
     TSharedRef<TJsonWriter<>> Writer =
         TJsonWriterFactory<>::Create(&EventString);
     FJsonSerializer::Serialize(Event.ToSharedRef(), Writer);
 
-    FString TruncatedEventString = EventString.Left(100);
-    if (EventString.Len() > 100)
+    FString TruncatedEventString = EventString.Left(2000);
+    if (EventString.Len() > 2000)
     {
         TruncatedEventString += TEXT("...");
     }
 
-    UE_LOG(LogTemp, Log, TEXT("Sending Realtime Event: %s"), *TruncatedEventString);
+    if (!isAudioStreamEvent) {
+        UE_LOG(LogTemp, Log, TEXT("Sending Realtime Event: %s"), *TruncatedEventString);
+    }
 
     WebSocket->Send(EventString);
 }
@@ -352,7 +359,7 @@ void UOpenAICallRealtime::SendRealtimeEvent(
 void UOpenAICallRealtime::OnAudioBufferCaptured(
     const TArray<float>& AudioBuffer)
 {
-    UE_LOG(LogTemp, Log, TEXT("Audio Buffer Captured, size: %d samples"), AudioBuffer.Num());
+    //UE_LOG(LogTemp, Log, TEXT("Audio Buffer Captured, size: %d samples"), AudioBuffer.Num());
     // Send the audio data to the OpenAI API
     SendAudioDataToAPI(AudioBuffer);
 
@@ -363,7 +370,7 @@ void UOpenAICallRealtime::OnAudioBufferCaptured(
 void UOpenAICallRealtime::SendAudioDataToAPI(
     const TArray<float>& AudioBuffer)
 {
-    UE_LOG(LogTemp, Log, TEXT("Sending Audio Data to API, buffer size: %d samples"), AudioBuffer.Num());
+    //UE_LOG(LogTemp, Log, TEXT("Sending Audio Data to API, buffer size: %d samples"), AudioBuffer.Num());
     // Convert float audio data to PCM16
     TArray<uint8> PCM16Data;
     PCM16Data.SetNumUninitialized(AudioBuffer.Num() * sizeof(int16));
@@ -378,7 +385,7 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
 
     // Base64 encode the PCM16 data
     FString Base64Audio = FBase64::Encode(PCM16Data);
-    UE_LOG(LogTemp, Log, TEXT("Audio data encoded to Base64, length: %d"), Base64Audio.Len());
+    //UE_LOG(LogTemp, Log, TEXT("Audio data encoded to Base64, length: %d"), Base64Audio.Len());
 
     // Create the input_audio_buffer.append event
     TSharedPtr<FJsonObject> AudioEvent =
@@ -387,8 +394,8 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
                                TEXT("input_audio_buffer.append"));
     AudioEvent->SetStringField(TEXT("audio"), Base64Audio);
 
-    SendRealtimeEvent(AudioEvent);
-    UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
+    SendRealtimeEvent(AudioEvent, true);
+    //UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
 }
 
 void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)

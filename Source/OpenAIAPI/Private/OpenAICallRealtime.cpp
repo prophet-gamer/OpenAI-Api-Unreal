@@ -10,6 +10,23 @@
 #include "Async/Async.h"
 #include "Kismet/GameplayStatics.h"
 
+struct FWavHeader
+{
+    char ChunkID[4];       // "RIFF"
+    uint32 ChunkSize;
+    char Format[4];        // "WAVE"
+    char Subchunk1ID[4];   // "fmt "
+    uint32 Subchunk1Size;  // 16 for PCM
+    uint16 AudioFormat;    // 1 for PCM
+    uint16 NumChannels;
+    uint32 SampleRate;
+    uint32 ByteRate;
+    uint16 BlockAlign;
+    uint16 BitsPerSample;
+    char Subchunk2ID[4];   // "data"
+    uint32 Subchunk2Size;
+};
+
 UOpenAICallRealtime::UOpenAICallRealtime()
 {
     AudioCaptureComponent = nullptr;
@@ -21,6 +38,36 @@ UOpenAICallRealtime::~UOpenAICallRealtime()
 {
     UE_LOG(LogTemp, Log, TEXT("UOpenAICallRealtime destructor called"));
     StopRealtimeSession();
+}
+
+void UOpenAICallRealtime::CreateWavHeader(const TArray<uint8>& AudioData, TArray<uint8>& OutWavData, uint32 SampleRate, uint16 NumChannels, uint16 BitsPerSample)
+{
+    FWavHeader WavHeader;
+
+    // RIFF Chunk
+    FMemory::Memcpy(WavHeader.ChunkID, "RIFF", 4);
+    WavHeader.ChunkSize = 36 + AudioData.Num(); // 4 + (8 + Subchunk1Size) + (8 + Subchunk2Size)
+    FMemory::Memcpy(WavHeader.Format, "WAVE", 4);
+
+    // fmt Subchunk
+    FMemory::Memcpy(WavHeader.Subchunk1ID, "fmt ", 4);
+    WavHeader.Subchunk1Size = 16;
+    WavHeader.AudioFormat = 1; // PCM
+    WavHeader.NumChannels = NumChannels;
+    WavHeader.SampleRate = SampleRate;
+    WavHeader.BitsPerSample = BitsPerSample;
+    WavHeader.ByteRate = WavHeader.SampleRate * WavHeader.NumChannels * WavHeader.BitsPerSample / 8;
+    WavHeader.BlockAlign = WavHeader.NumChannels * WavHeader.BitsPerSample / 8;
+
+    // data Subchunk
+    FMemory::Memcpy(WavHeader.Subchunk2ID, "data", 4);
+    WavHeader.Subchunk2Size = AudioData.Num();
+
+    // Append header to WavData
+    OutWavData.Append(reinterpret_cast<uint8*>(&WavHeader), sizeof(FWavHeader));
+
+    // Append audio data
+    OutWavData.Append(AudioData);
 }
 
 UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice)
@@ -309,14 +356,30 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
     AudioEvent->SetStringField(TEXT("audio"), Base64Audio);
 
     // Send the event over WebSocket
-    SendRealtimeEvent(AudioEvent);
-    UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
+    if (numberOfSentAudioBuffers < 5) {
+        numberOfSentAudioBuffers++;
+        SendRealtimeEvent(AudioEvent);
+        UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("Not sending audio data to API for debugging"));
+    }
 }
 
 void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)
 {
-    UE_LOG(LogTemp, Log, TEXT("Broadcasting Audio Data, size: %d bytes"), AudioData.Num());
+    TArray<uint8> ProcessedData;
 
-    // Broadcast the audio data to Blueprints
-    OnAudioDataReceived.Broadcast(AudioData);
+    if (!bHasSentWavHeader)
+    {
+        CreateWavHeader(AudioData, ProcessedData);
+        bHasSentWavHeader = true;
+    }
+    else
+    {
+        // Append raw audio data without header
+        ProcessedData.Append(AudioData);
+    }
+
+    // Broadcast the processed data
+    OnAudioDataReceived.Broadcast(ProcessedData);
 }

@@ -54,10 +54,13 @@ public:
     FOnRealtimeResponseReceivedPin OnResponseReceived;
 
     // Delegate called when an audio buffer is captured
-    UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
+    //UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
     FOnAudioBufferReceived OnAudioBufferReceived;
 
 private:
+    bool bHasSentWavHeader = false;
+    int32 numberOfSentAudioBuffers = 0;
+
     // WebSocket connection
     TSharedPtr<IWebSocket> WebSocket;
 
@@ -100,6 +103,8 @@ private:
     // Handle captured audio buffer
     UFUNCTION()
     void OnAudioBufferCaptured(const TArray<float>& AudioBuffer);
+
+    void CreateWavHeader(const TArray<uint8>& AudioData, TArray<uint8>& OutWavData, uint32 SampleRate = 24000, uint16 NumChannels = 1, uint16 BitsPerSample = 16);
 
     // Play received audio data
     void PlayAudioData(const TArray<uint8>& AudioData);

@@ -5,7 +5,7 @@
 #include "OpenAIAudioCapture.generated.h"
 
 // Delegate for broadcasting captured audio buffer
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioBufferCaptured, const TArray<float>&, AudioBuffer);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioBufferCaptured, const TArray<float>&, AudioBuffer);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class OPENAIAPI_API UOpenAIAudioCapture : public UAudioCaptureComponent

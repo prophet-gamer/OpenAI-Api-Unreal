@@ -378,7 +378,7 @@ void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)
     if (!bHasSentWavHeader)
     {
         CreateWavHeader(AudioData, ProcessedData);
-        bHasSentWavHeader = true;
+        //bHasSentWavHeader = true;
     }
     else
     {

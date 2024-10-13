@@ -20,12 +20,6 @@ FString UOpenAIUtils::GetVoiceString(EOAOpenAIVoices Voice)
         return TEXT("alloy");
     case EOAOpenAIVoices::ECHO:
         return TEXT("echo");
-    case EOAOpenAIVoices::FABLE:
-        return TEXT("fable");
-    case EOAOpenAIVoices::ONYX:
-        return TEXT("onyx");
-    case EOAOpenAIVoices::NOVA:
-        return TEXT("nova");
     case EOAOpenAIVoices::SHIMMER:
         return TEXT("shimmer");
     default:

@@ -216,16 +216,53 @@ void UOpenAICallRealtime::OnWebSocketConnected()
 {
     UE_LOG(LogTemp, Log, TEXT("WebSocket connected"));
     // Send session update event to set voice and other configurations
-    TSharedPtr<FJsonObject> SessionUpdateEvent =
-        MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> SessionUpdateEvent = MakeShareable(new FJsonObject());
     SessionUpdateEvent->SetStringField(TEXT("type"), TEXT("session.update"));
 
-    TSharedPtr<FJsonObject> ConfigObject =
-        MakeShareable(new FJsonObject());
-    ConfigObject->SetStringField(
-        TEXT("voice"),
-        UOpenAIUtils::GetVoiceString(SelectedVoice));
-    // Add more configurations if needed
+    TSharedPtr<FJsonObject> ConfigObject = MakeShareable(new FJsonObject());
+
+    // Set modalities
+    TArray<TSharedPtr<FJsonValue>> Modalities;
+    Modalities.Add(MakeShareable(new FJsonValueString(TEXT("text"))));
+    Modalities.Add(MakeShareable(new FJsonValueString(TEXT("audio"))));
+    ConfigObject->SetArrayField(TEXT("modalities"), Modalities);
+
+    // Set instructions
+    ConfigObject->SetStringField(TEXT("instructions"), SessionInstructions);
+
+    // Set voice
+    ConfigObject->SetStringField(TEXT("voice"), UOpenAIUtils::GetVoiceString(SelectedVoice));
+
+    // Set audio formats
+    ConfigObject->SetStringField(TEXT("input_audio_format"), TEXT("pcm16"));
+    ConfigObject->SetStringField(TEXT("output_audio_format"), TEXT("pcm16"));
+
+    // Set input audio transcription
+    TSharedPtr<FJsonObject> TranscriptionObject = MakeShareable(new FJsonObject());
+    TranscriptionObject->SetBoolField(TEXT("enabled"), true);
+    TranscriptionObject->SetStringField(TEXT("model"), TEXT("whisper-1"));
+    ConfigObject->SetObjectField(TEXT("input_audio_transcription"), TranscriptionObject);
+
+    // Set turn detection
+    TSharedPtr<FJsonObject> TurnDetectionObject = MakeShareable(new FJsonObject());
+    TurnDetectionObject->SetStringField(TEXT("type"), TEXT("server_vad"));
+    TurnDetectionObject->SetNumberField(TEXT("threshold"), 0.5);
+    TurnDetectionObject->SetNumberField(TEXT("prefix_padding_ms"), 300);
+    TurnDetectionObject->SetNumberField(TEXT("silence_duration_ms"), 200);
+    ConfigObject->SetObjectField(TEXT("turn_detection"), TurnDetectionObject);
+
+    // Set tools (empty array)
+    TArray<TSharedPtr<FJsonValue>> Tools;
+    ConfigObject->SetArrayField(TEXT("tools"), Tools);
+
+    // Set tool choice
+    ConfigObject->SetStringField(TEXT("tool_choice"), TEXT("auto"));
+
+    // Set temperature
+    ConfigObject->SetNumberField(TEXT("temperature"), 0.8);
+
+    // Set max_output_tokens (null)
+    ConfigObject->SetField(TEXT("max_output_tokens"), MakeShareable(new FJsonValueNull()));
 
     SessionUpdateEvent->SetObjectField(TEXT("config"), ConfigObject);
 
@@ -233,25 +270,21 @@ void UOpenAICallRealtime::OnWebSocketConnected()
     UE_LOG(LogTemp, Log, TEXT("Session update event sent"));
 
     // Create response
-    TSharedPtr<FJsonObject> ResponseCreateEvent =
-        MakeShareable(new FJsonObject());
-    ResponseCreateEvent->SetStringField(TEXT("type"), TEXT("response.create"));
+    bool createResponse = true;
+    if (createResponse) {
+        TSharedPtr<FJsonObject> ResponseCreateEvent = MakeShareable(new FJsonObject());
+        ResponseCreateEvent->SetStringField(TEXT("type"), TEXT("response.create"));
 
-    TSharedPtr<FJsonObject> ResponseObject =
-        MakeShareable(new FJsonObject());
-    ResponseObject->SetStringField(TEXT("instructions"),
-                                   SessionInstructions);
+        TSharedPtr<FJsonObject> ResponseObject = MakeShareable(new FJsonObject());
+        ResponseObject->SetStringField(TEXT("instructions"), SessionInstructions);
 
-    TArray<TSharedPtr<FJsonValue>> Modalities;
-    Modalities.Add(MakeShareable(new FJsonValueString(TEXT("text"))));
-    Modalities.Add(MakeShareable(new FJsonValueString(TEXT("audio"))));
+        ResponseObject->SetArrayField(TEXT("modalities"), Modalities);
 
-    ResponseObject->SetArrayField(TEXT("modalities"), Modalities);
+        ResponseCreateEvent->SetObjectField(TEXT("response"), ResponseObject);
 
-    ResponseCreateEvent->SetObjectField(TEXT("response"), ResponseObject);
-
-    SendRealtimeEvent(ResponseCreateEvent);
-    UE_LOG(LogTemp, Log, TEXT("Response create event sent"));
+        SendRealtimeEvent(ResponseCreateEvent);
+        UE_LOG(LogTemp, Log, TEXT("Response create event sent"));
+    }
 }
 
 void UOpenAICallRealtime::OnWebSocketConnectionError(const FString& Error)
@@ -370,7 +403,7 @@ void UOpenAICallRealtime::OnAudioBufferCaptured(
 void UOpenAICallRealtime::SendAudioDataToAPI(
     const TArray<float>& AudioBuffer)
 {
-    //UE_LOG(LogTemp, Log, TEXT("Sending Audio Data to API, buffer size: %d samples"), AudioBuffer.Num());
+    UE_LOG(LogTemp, Log, TEXT("Sending Audio Data to API, buffer size: %d samples"), AudioBuffer.Num());
     // Convert float audio data to PCM16
     TArray<uint8> PCM16Data;
     PCM16Data.SetNumUninitialized(AudioBuffer.Num() * sizeof(int16));

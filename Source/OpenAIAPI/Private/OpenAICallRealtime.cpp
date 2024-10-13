@@ -354,7 +354,7 @@ void UOpenAICallRealtime::OnAudioBufferCaptured(
     SendAudioDataToAPI(AudioBuffer);
 
     // Broadcast the audio buffer to Blueprints
-    OnAudioBufferReceived.Broadcast(AudioBuffer);
+    //OnAudioBufferReceived.Broadcast(AudioBuffer);
 }
 
 void UOpenAICallRealtime::SendAudioDataToAPI(
@@ -384,14 +384,8 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
                                TEXT("input_audio_buffer.append"));
     AudioEvent->SetStringField(TEXT("audio"), Base64Audio);
 
-    // Send the event over WebSocket
-    if (numberOfSentAudioBuffers < 2005) {
-        numberOfSentAudioBuffers++;
-        SendRealtimeEvent(AudioEvent);
-        UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
-    } else {
-        UE_LOG(LogTemp, Log, TEXT("Not sending audio data to API for debugging"));
-    }
+    SendRealtimeEvent(AudioEvent);
+    UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
 }
 
 void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)

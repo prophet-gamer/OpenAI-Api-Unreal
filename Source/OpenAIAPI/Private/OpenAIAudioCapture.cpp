@@ -6,6 +6,7 @@ UOpenAIAudioCapture::UOpenAIAudioCapture()
     PrimaryComponentTick.bCanEverTick = false;
     AudioCapture = nullptr;
     bIsCapturing = false;
+    UE_LOG(LogTemp, Log, TEXT("UOpenAIAudioCapture constructor called"));
 }
 
 void UOpenAIAudioCapture::BeginPlay()
@@ -23,6 +24,7 @@ void UOpenAIAudioCapture::BeginPlay()
         // Start capturing the audio
         AudioCapture->OpenDefaultAudioStream();
         StartCapturing();
+        UE_LOG(LogTemp, Log, TEXT("------------------->AudioCapture started from BeginPlay"));
     }
     else
     {
@@ -49,6 +51,8 @@ void UOpenAIAudioCapture::StartCapturing()
     {
         AudioCapture->StartCapturingAudio();
         bIsCapturing = true;
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("AudioCapture is null or already capturing"));
     }
 }
 
@@ -71,6 +75,7 @@ void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples
 {
     if (bIsCapturing)
     {
+        UE_LOG(LogTemp, Log, TEXT("OnAudioGenerate called"));
         AudioBuffer.Append(InAudio, NumSamples);
 
         // Create a copy of the buffer to broadcast
@@ -81,5 +86,7 @@ void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples
 
         // Clear the buffer after broadcasting
         AudioBuffer.Empty();
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("AudioCapture is null or not capturing"));
     }
 }

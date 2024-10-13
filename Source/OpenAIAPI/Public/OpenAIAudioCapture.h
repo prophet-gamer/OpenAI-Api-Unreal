@@ -32,5 +32,7 @@ private:
     UAudioCapture* AudioCapture;
     TArray<float> AudioBuffer;
 
+    bool bIsCapturing;
+
     void OnAudioGenerate(const float* InAudio, int32 NumSamples);
 };

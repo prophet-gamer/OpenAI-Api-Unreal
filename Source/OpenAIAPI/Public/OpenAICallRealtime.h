@@ -48,6 +48,7 @@ public:
     // Stop the realtime session
     UFUNCTION(BlueprintCallable, Category = "OpenAI")
     void StopRealtimeSession();
+    virtual void BeginDestroy() override;
 
     // Delegate called when a text response is received
     UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
@@ -60,6 +61,7 @@ public:
 private:
     bool bHasSentWavHeader = false;
     int32 numberOfSentAudioBuffers = 0;
+    bool bSessionStopped = false;
 
     // WebSocket connection
     TSharedPtr<IWebSocket> WebSocket;

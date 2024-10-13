@@ -37,7 +37,16 @@ UOpenAICallRealtime::UOpenAICallRealtime()
 UOpenAICallRealtime::~UOpenAICallRealtime()
 {
     UE_LOG(LogTemp, Log, TEXT("UOpenAICallRealtime destructor called"));
+    // Ensure all references are cleared
+    AudioCaptureComponent = nullptr;
+    WebSocket.Reset();
+}
+
+void UOpenAICallRealtime::BeginDestroy()
+{
+    UE_LOG(LogTemp, Log, TEXT("UOpenAICallRealtime BeginDestroy called"));
     StopRealtimeSession();
+    Super::BeginDestroy();
 }
 
 void UOpenAICallRealtime::CreateWavHeader(const TArray<uint8>& AudioData, TArray<uint8>& OutWavData, uint32 SampleRate, uint16 NumChannels, uint16 BitsPerSample)
@@ -114,31 +123,45 @@ void UOpenAICallRealtime::StartRealtimeSession()
 
 void UOpenAICallRealtime::StopRealtimeSession()
 {
-    UE_LOG(LogTemp, Log, TEXT("StopRealtimeSession called"));
-    AsyncTask(ENamedThreads::GameThread, [this]()
+    if (bSessionStopped)
     {
-        UE_LOG(LogTemp, Log, TEXT("Executing StopRealtimeSession on GameThread"));
-        // Stop capturing audio
-        if (AudioCaptureComponent)
-        {
-            AudioCaptureComponent->StopCapturing();
-            AudioCaptureComponent->OnAudioBufferCaptured.RemoveDynamic(
-                this, &UOpenAICallRealtime::OnAudioBufferCaptured);
-            AudioCaptureComponent->DestroyComponent();
-            AudioCaptureComponent = nullptr;
-        }
+        UE_LOG(LogTemp, Warning, TEXT("StopRealtimeSession already called"));
+        return;
+    }
 
-        // Close WebSocket connection
-        if (WebSocket.IsValid())
-        {
-            UE_LOG(LogTemp, Log, TEXT("Closing WebSocket"));
-            WebSocket->Close();
-            WebSocket.Reset();
-            UE_LOG(LogTemp, Log, TEXT("WebSocket closed and reset"));
-        }
+    bSessionStopped = true;
 
-        UE_LOG(LogTemp, Log, TEXT("Realtime session stopped successfully"));
-    });
+    UE_LOG(LogTemp, Log, TEXT("StopRealtimeSession called"));
+
+    if (!IsInGameThread())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("StopRealtimeSession called off GameThread. Executing on GameThread."));
+        AsyncTask(ENamedThreads::GameThread, [this]()
+        {
+            StopRealtimeSession();
+        });
+        return;
+    }
+
+    // Stop capturing audio
+    if (IsValid(AudioCaptureComponent))
+    {
+        AudioCaptureComponent->StopCapturing();
+        AudioCaptureComponent->OnAudioBufferCaptured.RemoveDynamic(this, &UOpenAICallRealtime::OnAudioBufferCaptured);
+        AudioCaptureComponent->DestroyComponent();
+        AudioCaptureComponent = nullptr;
+    }
+
+    // Close WebSocket connection
+    if (WebSocket.IsValid())
+    {
+        UE_LOG(LogTemp, Log, TEXT("Closing WebSocket"));
+        WebSocket->Close();
+        WebSocket.Reset();
+        UE_LOG(LogTemp, Log, TEXT("WebSocket closed and reset"));
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("Realtime session stopped successfully"));
 }
 
 void UOpenAICallRealtime::InitializeWebSocket()
@@ -362,7 +385,7 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
     AudioEvent->SetStringField(TEXT("audio"), Base64Audio);
 
     // Send the event over WebSocket
-    if (numberOfSentAudioBuffers < 5) {
+    if (numberOfSentAudioBuffers < 2005) {
         numberOfSentAudioBuffers++;
         SendRealtimeEvent(AudioEvent);
         UE_LOG(LogTemp, Log, TEXT("Audio data sent to API"));
@@ -375,16 +398,7 @@ void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)
 {
     TArray<uint8> ProcessedData;
 
-    if (!bHasSentWavHeader)
-    {
-        CreateWavHeader(AudioData, ProcessedData);
-        //bHasSentWavHeader = true;
-    }
-    else
-    {
-        // Append raw audio data without header
-        ProcessedData.Append(AudioData);
-    }
+    CreateWavHeader(AudioData, ProcessedData);
 
     // Broadcast the processed data
     OnAudioDataReceived.Broadcast(ProcessedData);

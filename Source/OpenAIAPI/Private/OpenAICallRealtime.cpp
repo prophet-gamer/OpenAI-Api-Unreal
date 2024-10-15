@@ -435,8 +435,9 @@ void UOpenAICallRealtime::PlayAudioData(const TArray<uint8>& AudioData)
 {
     TArray<uint8> ProcessedData;
 
-    CreateWavHeader(AudioData, ProcessedData);
+    //CreateWavHeader(AudioData, ProcessedData);
 
     // Broadcast the processed data
-    OnAudioDataReceived.Broadcast(ProcessedData);
+    //OnAudioDataReceived.Broadcast(ProcessedData);
+    OnAudioDataReceived.Broadcast(AudioData);
 }

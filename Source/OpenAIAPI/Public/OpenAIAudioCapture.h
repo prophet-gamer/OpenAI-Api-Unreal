@@ -26,14 +26,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Audio")
     void StopCapturing();
 
+    void ProcessAndBroadcastBuffer();
+
     UPROPERTY(BlueprintAssignable, Category = "Audio")
     FOnAudioBufferCaptured OnAudioBufferCaptured;
 
 private:
     UAudioCapture* AudioCapture;
     TArray<float> AudioBuffer;
+    FCriticalSection AudioBufferLock;
 
     bool bIsCapturing;
+    double LastBroadcastTime;
+    static constexpr float MaxBufferTime = 0.4f; // 400 ms
+    static constexpr int32 MaxBufferSize = 12000; // Approximately 24000 bytes
+
 
     void OnAudioGenerate(const float* InAudio, int32 NumSamples);
 };

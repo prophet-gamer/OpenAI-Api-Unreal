@@ -59,6 +59,9 @@ void UOpenAIAudioCapture::StopCapturing()
     {
         UE_LOG(LogTemp, Log, TEXT("AudioCapture is valid"));
         AudioCapture->StopCapturingAudio();
+         bIsCapturing = false;
+         ProcessAndBroadcastBuffer(); // Broadcast any remaining data
+
         UE_LOG(LogTemp, Log, TEXT("Audio capture stopped successfully"));
     }
     else
@@ -81,26 +84,48 @@ void UOpenAIAudioCapture::DestroyAudioCapture() {
 
 void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples)
 {
-    if (bIsCapturing)
-    {
-        TArray<float> ResampledAudio;
+    if (InAudio) {
+        if (bIsCapturing)
+        {
+        FScopeLock Lock(&AudioBufferLock);
+
+        // Downsample by half (320 to 160 bytes)
         for (int32 i = 0; i < NumSamples; i += 2)
         {
-            ResampledAudio.Add(InAudio[i]);
+            AudioBuffer.Add(InAudio[i]);
         }
 
-        // Append the resampled audio to the buffer
-        AudioBuffer.Append(ResampledAudio);
+        double CurrentTime = FPlatformTime::Seconds();
+        if (CurrentTime - LastBroadcastTime >= MaxBufferTime || AudioBuffer.Num() >= MaxBufferSize)
+        {
+            AsyncTask(ENamedThreads::GameThread, [this]()
+            {
+                ProcessAndBroadcastBuffer();
+            });
+            LastBroadcastTime = CurrentTime;
+        }
+    }
 
-        // Create a copy of the buffer to broadcast
-        TArray<float> BufferCopy = AudioBuffer;
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("InAudio is null"));
+    }
+}
 
+void UOpenAIAudioCapture::ProcessAndBroadcastBuffer()
+{
+    TArray<float> BufferCopy;
+    {
+        FScopeLock Lock(&AudioBufferLock);
+        if (AudioBuffer.Num() > 0)
+        {
+            BufferCopy = AudioBuffer;
+            AudioBuffer.Empty();
+        }
+    }
+
+    if (BufferCopy.Num() > 0)
+    {
         // Broadcast the captured audio data
         OnAudioBufferCaptured.Broadcast(BufferCopy);
-
-        // Clear the buffer after broadcasting
-        AudioBuffer.Empty();
-    } else {
-        UE_LOG(LogTemp, Log, TEXT("AudioCapture is null or not capturing"));
     }
 }

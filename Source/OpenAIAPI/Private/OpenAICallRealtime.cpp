@@ -351,6 +351,26 @@ void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
                 PlayAudioData(AudioData);
             });
         }
+        else if (EventType == TEXT("response.done"))
+        {
+            // Handle response.done
+            TSharedPtr<FJsonObject> ResponseObject = JsonObject->GetObjectField(TEXT("response"));
+            FString Status = ResponseObject->GetStringField(TEXT("status"));
+            if (Status == TEXT("cancelled"))
+            {
+                TSharedPtr<FJsonObject> StatusDetailsObject = ResponseObject->GetObjectField(TEXT("status_details"));
+                FString Reason = StatusDetailsObject->GetStringField(TEXT("reason"));
+                if (Reason == TEXT("turn_detected"))
+                {
+                    UE_LOG(LogTemp, Log, TEXT("Response was cancelled due to turn_detected"));
+                    // Ensure the delegate is called on the game thread
+                    AsyncTask(ENamedThreads::GameThread, [this]()
+                    {
+                        OnCancelAudioReceived.Broadcast(true);
+                    });
+                }
+            }
+        }
         else if (EventType == TEXT("error"))
         {
             // Handle error
@@ -403,7 +423,7 @@ void UOpenAICallRealtime::OnAudioBufferCaptured(
 void UOpenAICallRealtime::SendAudioDataToAPI(
     const TArray<float>& AudioBuffer)
 {
-    UE_LOG(LogTemp, Log, TEXT("Sending Audio Data to API, buffer size: %d samples"), AudioBuffer.Num());
+    UE_LOG(LogTemp, Log, TEXT("Audio out -> %d samples"), AudioBuffer.Num());
     // Convert float audio data to PCM16
     TArray<uint8> PCM16Data;
     PCM16Data.SetNumUninitialized(AudioBuffer.Num() * sizeof(int16));

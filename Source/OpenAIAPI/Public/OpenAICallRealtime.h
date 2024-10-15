@@ -17,6 +17,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     const FString&, Response,
     bool, bSuccess);
 
+
+
 // Delegate for receiving audio buffers for lip-sync
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FOnAudioBufferReceived,
@@ -25,6 +27,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FOnAudioDataReceived,
     const TArray<uint8>&, AudioData);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FOnRealtimeCancelAudioReceivedPin,
+    bool, bWasCancelled);
 
 UCLASS()
 class OPENAIAPI_API UOpenAICallRealtime : public UBlueprintAsyncActionBase
@@ -53,6 +59,9 @@ public:
     // Delegate called when a text response is received
     UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
     FOnRealtimeResponseReceivedPin OnResponseReceived;
+
+    UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
+    FOnRealtimeCancelAudioReceivedPin OnCancelAudioReceived;
 
     // Delegate called when an audio buffer is captured
     //UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")

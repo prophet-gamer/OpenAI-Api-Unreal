@@ -83,8 +83,14 @@ void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples
 {
     if (bIsCapturing)
     {
-        //UE_LOG(LogTemp, Log, TEXT("OnAudioGenerate called"));
-        AudioBuffer.Append(InAudio, NumSamples);
+        TArray<float> ResampledAudio;
+        for (int32 i = 0; i < NumSamples; i += 2)
+        {
+            ResampledAudio.Add(InAudio[i]);
+        }
+
+        // Append the resampled audio to the buffer
+        AudioBuffer.Append(ResampledAudio);
 
         // Create a copy of the buffer to broadcast
         TArray<float> BufferCopy = AudioBuffer;

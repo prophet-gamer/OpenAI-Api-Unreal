@@ -269,7 +269,7 @@ void UOpenAICallRealtime::OnWebSocketConnected()
     UE_LOG(LogTemp, Log, TEXT("Session update event sent"));
 
     // Create response
-    bool createResponse = false;
+    bool createResponse = true;
     if (createResponse) {
         TSharedPtr<FJsonObject> ResponseCreateEvent = MakeShareable(new FJsonObject());
         ResponseCreateEvent->SetStringField(TEXT("type"), TEXT("response.create"));

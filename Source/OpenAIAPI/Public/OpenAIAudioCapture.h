@@ -32,6 +32,7 @@ public:
     FOnAudioBufferCaptured OnAudioBufferCaptured;
 
 private:
+    UPROPERTY()
     UAudioCapture* AudioCapture;
 
     TArray<float> AudioBuffer;

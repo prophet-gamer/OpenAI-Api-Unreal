@@ -239,7 +239,6 @@ void UOpenAICallRealtime::OnWebSocketConnected()
 
     // Set input audio transcription
     TSharedPtr<FJsonObject> TranscriptionObject = MakeShareable(new FJsonObject());
-    TranscriptionObject->SetBoolField(TEXT("enabled"), true);
     TranscriptionObject->SetStringField(TEXT("model"), TEXT("whisper-1"));
     ConfigObject->SetObjectField(TEXT("input_audio_transcription"), TranscriptionObject);
 
@@ -251,7 +250,7 @@ void UOpenAICallRealtime::OnWebSocketConnected()
     TurnDetectionObject->SetNumberField(TEXT("silence_duration_ms"), 200);
     ConfigObject->SetObjectField(TEXT("turn_detection"), TurnDetectionObject);
 
-    // Set tools (empty array)
+    // Set tools (empty array for now, you can add tools if needed)
     TArray<TSharedPtr<FJsonValue>> Tools;
     ConfigObject->SetArrayField(TEXT("tools"), Tools);
 
@@ -259,12 +258,12 @@ void UOpenAICallRealtime::OnWebSocketConnected()
     ConfigObject->SetStringField(TEXT("tool_choice"), TEXT("auto"));
 
     // Set temperature
-    ConfigObject->SetNumberField(TEXT("temperature"), 0.8);
+    //ConfigObject->SetNumberField(TEXT("temperature"), 0.7);
 
-    // Set max_output_tokens (null)
-    ConfigObject->SetField(TEXT("max_output_tokens"), MakeShareable(new FJsonValueNull()));
+    // Set max_output_tokens to null
+    //ConfigObject->SetField(TEXT("max_output_tokens"), MakeShareable(new FJsonValueNull()));
 
-    SessionUpdateEvent->SetObjectField(TEXT("config"), ConfigObject);
+    SessionUpdateEvent->SetObjectField(TEXT("session"), ConfigObject);
 
     SendRealtimeEvent(SessionUpdateEvent);
     UE_LOG(LogTemp, Log, TEXT("Session update event sent"));

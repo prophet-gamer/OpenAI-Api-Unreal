@@ -17,8 +17,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     const FString&, Response,
     bool, bSuccess);
 
-
-
 // Delegate for receiving audio buffers for lip-sync
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FOnAudioBufferReceived,

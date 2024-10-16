@@ -33,8 +33,8 @@ public:
 
 private:
     UAudioCapture* AudioCapture;
+
     TArray<float> AudioBuffer;
-    FCriticalSection AudioBufferLock;
 
     bool bIsCapturing;
     double LastBroadcastTime;

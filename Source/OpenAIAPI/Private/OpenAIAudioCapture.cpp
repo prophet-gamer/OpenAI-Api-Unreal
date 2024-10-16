@@ -26,10 +26,9 @@ void UOpenAIAudioCapture::Activate(bool bReset)
                 this->OnAudioGenerate(InAudio, NumSamples);
             });
 
-            // Start capturing the audio
             AudioCapture->OpenDefaultAudioStream();
             StartCapturing();
-            UE_LOG(LogTemp, Log, TEXT("-------------------> AudioCapture started from Activate"));
+            UE_LOG(LogTemp, Log, TEXT("-------------------> AudioCapture started from Activate on GameThread"));
         }
         else
         {
@@ -44,9 +43,14 @@ void UOpenAIAudioCapture::StartCapturing()
 {
     if (AudioCapture && !bIsCapturing)
     {
-        AudioCapture->StartCapturingAudio();
-        bIsCapturing = true;
-        UE_LOG(LogTemp, Log, TEXT("AudioCapture started"));
+        if (AudioCapture) {
+            UE_LOG(LogTemp, Log, TEXT("AudioCapture is valid"));
+            AudioCapture->StartCapturingAudio();
+            bIsCapturing = true;
+            UE_LOG(LogTemp, Log, TEXT("Audio capture started successfully"));
+        } else {
+            UE_LOG(LogTemp, Log, TEXT("AudioCapture is null"));
+        }
     } else {
         UE_LOG(LogTemp, Log, TEXT("AudioCapture is null or already capturing"));
     }
@@ -87,8 +91,6 @@ void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples
     if (InAudio) {
         if (bIsCapturing)
         {
-        FScopeLock Lock(&AudioBufferLock);
-
         // Downsample by half (320 to 160 bytes)
         for (int32 i = 0; i < NumSamples; i += 2)
         {
@@ -97,13 +99,10 @@ void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples
 
         double CurrentTime = FPlatformTime::Seconds();
         if (CurrentTime - LastBroadcastTime >= MaxBufferTime || AudioBuffer.Num() >= MaxBufferSize)
-        {
-            AsyncTask(ENamedThreads::GameThread, [this]()
             {
                 ProcessAndBroadcastBuffer();
-            });
-            LastBroadcastTime = CurrentTime;
-        }
+                LastBroadcastTime = CurrentTime;
+            }
     }
 
     } else {
@@ -115,7 +114,6 @@ void UOpenAIAudioCapture::ProcessAndBroadcastBuffer()
 {
     TArray<float> BufferCopy;
     {
-        FScopeLock Lock(&AudioBufferLock);
         if (AudioBuffer.Num() > 0)
         {
             BufferCopy = AudioBuffer;

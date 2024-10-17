@@ -91,20 +91,42 @@ void UOpenAIAudioCapture::OnAudioGenerate(const float* InAudio, int32 NumSamples
     if (InAudio) {
         if (bIsCapturing)
         {
-        // Downsample by half (320 to 160 bytes)
-        for (int32 i = 0; i < NumSamples; i += 2)
-        {
-            AudioBuffer.Add(InAudio[i]);
-        }
+            const int32 DownsampleFactor = 2; // Factor by which to downsample
+            const int32 InterpolatedSamples = NumSamples / DownsampleFactor;
 
-        double CurrentTime = FPlatformTime::Seconds();
-        if (CurrentTime - LastBroadcastTime >= MaxBufferTime || AudioBuffer.Num() >= MaxBufferSize)
+            for (int32 i = 0; i < InterpolatedSamples - 1; i++)
+            {
+               // Indices for original samples
+                int32 index1 = i * DownsampleFactor;
+                int32 index2 = index1 + DownsampleFactor;
+
+                // Boundary check to prevent accessing out-of-range samples
+                if (index2 >= NumSamples)
+                {
+                    // Handle the last sample if NumSamples is not perfectly divisible
+                    index2 = NumSamples - 1;
+                }
+
+                // Original sample values
+                float sample1 = InAudio[index1];
+                float sample2 = InAudio[index2];
+
+                // Calculate the interpolated sample using linear interpolation
+                float interpolatedSample = sample1 + ((sample2 - sample1) * 0.5f);
+
+                // Add the interpolated sample to the AudioBuffer
+                AudioBuffer.Add(interpolatedSample);
+            }
+            double CurrentTime = FPlatformTime::Seconds();
+            if (CurrentTime - LastBroadcastTime >= MaxBufferTime || AudioBuffer.Num() >= MaxBufferSize)
             {
                 ProcessAndBroadcastBuffer();
                 LastBroadcastTime = CurrentTime;
             }
-    }
 
+        } else {
+            UE_LOG(LogTemp, Log, TEXT("bIsCapturing is false"));
+        }
     } else {
         UE_LOG(LogTemp, Log, TEXT("InAudio is null"));
     }

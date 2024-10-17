@@ -79,11 +79,12 @@ void UOpenAICallRealtime::CreateWavHeader(const TArray<uint8>& AudioData, TArray
     OutWavData.Append(AudioData);
 }
 
-UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice)
+UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice, float VadThreshold)
 {
     UOpenAICallRealtime* Node = NewObject<UOpenAICallRealtime>();
     Node->SessionInstructions = Instructions;
     Node->SelectedVoice = Voice;
+    Node->VadThreshold = VadThreshold;
     UE_LOG(LogTemp, Log, TEXT("OpenAICallRealtime created with instructions: %s and voice: %d"), *Instructions, static_cast<int>(Voice));
     return Node;
 }
@@ -215,73 +216,62 @@ void UOpenAICallRealtime::InitializeWebSocket()
 void UOpenAICallRealtime::OnWebSocketConnected()
 {
     UE_LOG(LogTemp, Log, TEXT("WebSocket connected"));
-    // Send session update event to set voice and other configurations
-    TSharedPtr<FJsonObject> SessionUpdateEvent = MakeShareable(new FJsonObject());
-    SessionUpdateEvent->SetStringField(TEXT("type"), TEXT("session.update"));
+     // Clamp the threshold value
+    float ClampedThreshold = FMath::Clamp(VadThreshold, 0.0f, 1.0f);
 
-    TSharedPtr<FJsonObject> ConfigObject = MakeShareable(new FJsonObject());
+    // Format the threshold with exactly 6 decimal places
+    FString FormattedThreshold = FString::Printf(TEXT("%.6f"), ClampedThreshold);
 
-    // Set modalities
-    TArray<TSharedPtr<FJsonValue>> Modalities;
-    Modalities.Add(MakeShareable(new FJsonValueString(TEXT("text"))));
-    Modalities.Add(MakeShareable(new FJsonValueString(TEXT("audio"))));
-    ConfigObject->SetArrayField(TEXT("modalities"), Modalities);
+    // Construct the entire message as a string
+    FString SessionUpdateEvent = FString::Printf(TEXT(R"({
+        "type": "session.update",
+        "session": {
+            "modalities": ["text", "audio"],
+            "instructions": "%s",
+            "voice": "%s",
+            "input_audio_format": "pcm16",
+            "output_audio_format": "pcm16",
+            "input_audio_transcription": {
+                "model": "whisper-1"
+            },
+            "turn_detection": {
+                "type": "server_vad",
+                "threshold": %s,
+                "prefix_padding_ms": 300,
+                "silence_duration_ms": 200
+            },
+            "tools": [],
+            "tool_choice": "auto"
+        }
+    })"),
+        *SessionInstructions.ReplaceCharWithEscapedChar(),
+        *UOpenAIUtils::GetVoiceString(SelectedVoice),
+        *FormattedThreshold
+    );
 
-    // Set instructions
-    ConfigObject->SetStringField(TEXT("instructions"), SessionInstructions);
-
-    // Set voice
-    ConfigObject->SetStringField(TEXT("voice"), UOpenAIUtils::GetVoiceString(SelectedVoice));
-
-    // Set audio formats
-    ConfigObject->SetStringField(TEXT("input_audio_format"), TEXT("pcm16"));
-    ConfigObject->SetStringField(TEXT("output_audio_format"), TEXT("pcm16"));
-
-    // Set input audio transcription
-    TSharedPtr<FJsonObject> TranscriptionObject = MakeShareable(new FJsonObject());
-    TranscriptionObject->SetStringField(TEXT("model"), TEXT("whisper-1"));
-    ConfigObject->SetObjectField(TEXT("input_audio_transcription"), TranscriptionObject);
-
-    // Set turn detection
-    TSharedPtr<FJsonObject> TurnDetectionObject = MakeShareable(new FJsonObject());
-    TurnDetectionObject->SetStringField(TEXT("type"), TEXT("server_vad"));
-    TurnDetectionObject->SetNumberField(TEXT("threshold"), 0.5);
-    TurnDetectionObject->SetNumberField(TEXT("prefix_padding_ms"), 300);
-    TurnDetectionObject->SetNumberField(TEXT("silence_duration_ms"), 200);
-    ConfigObject->SetObjectField(TEXT("turn_detection"), TurnDetectionObject);
-
-    // Set tools (empty array for now, you can add tools if needed)
-    TArray<TSharedPtr<FJsonValue>> Tools;
-    ConfigObject->SetArrayField(TEXT("tools"), Tools);
-
-    // Set tool choice
-    ConfigObject->SetStringField(TEXT("tool_choice"), TEXT("auto"));
-
-    // Set temperature
-    //ConfigObject->SetNumberField(TEXT("temperature"), 0.7);
-
-    // Set max_output_tokens to null
-    //ConfigObject->SetField(TEXT("max_output_tokens"), MakeShareable(new FJsonValueNull()));
-
-    SessionUpdateEvent->SetObjectField(TEXT("session"), ConfigObject);
-
-    SendRealtimeEvent(SessionUpdateEvent);
-    UE_LOG(LogTemp, Log, TEXT("Session update event sent"));
+    UE_LOG(LogTemp, Log, TEXT("Sending Session Update Event: %s"), *SessionUpdateEvent);
+    WebSocket->Send(SessionUpdateEvent);
 
     // Create response
     bool createResponse = true;
     if (createResponse) {
-        TSharedPtr<FJsonObject> ResponseCreateEvent = MakeShareable(new FJsonObject());
-        ResponseCreateEvent->SetStringField(TEXT("type"), TEXT("response.create"));
+        // Construct the modalities array as a string
+        FString ModalitiesString = TEXT("\"text\", \"audio\"");  // Adjust if needed
 
-        TSharedPtr<FJsonObject> ResponseObject = MakeShareable(new FJsonObject());
-        ResponseObject->SetStringField(TEXT("instructions"), SessionInstructions);
+        // Construct the entire response.create event as a string
+        FString ResponseCreateEvent = FString::Printf(TEXT(R"({
+            "type": "response.create",
+            "response": {
+                "instructions": "%s",
+                "modalities": [%s]
+            }
+        })"),
+            *SessionInstructions.ReplaceCharWithEscapedChar(),
+            *ModalitiesString
+        );
 
-        ResponseObject->SetArrayField(TEXT("modalities"), Modalities);
-
-        ResponseCreateEvent->SetObjectField(TEXT("response"), ResponseObject);
-
-        SendRealtimeEvent(ResponseCreateEvent);
+        UE_LOG(LogTemp, Log, TEXT("Sending Response Create Event: %s"), *ResponseCreateEvent);
+        WebSocket->Send(ResponseCreateEvent);
         UE_LOG(LogTemp, Log, TEXT("Response create event sent"));
     }
 }
@@ -306,13 +296,12 @@ void UOpenAICallRealtime::OnWebSocketClosed(int32 StatusCode,
 
 void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
 {
-    FString TruncatedMessage = Message.Left(1200);
-    if (Message.Len() > 1200)
+    FString TruncatedMessage = Message.Left(200);
+    if (Message.Len() > 200)
     {
         TruncatedMessage += TEXT("...");
     }
 
-    UE_LOG(LogTemp, Log, TEXT("WebSocket Message Received: %s"), *TruncatedMessage);
     // Parse and handle incoming messages
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<>> Reader =
@@ -321,7 +310,7 @@ void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
     if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
     {
         FString EventType = JsonObject->GetStringField(TEXT("type"));
-        UE_LOG(LogTemp, Log, TEXT("Event Type: %s"), *EventType);
+        UE_LOG(LogTemp, Log, TEXT("===> Event Type: %s"), *EventType);
 
         if (EventType == TEXT("response.text.delta"))
         {
@@ -350,25 +339,14 @@ void UOpenAICallRealtime::OnWebSocketMessage(const FString& Message)
                 PlayAudioData(AudioData);
             });
         }
-        else if (EventType == TEXT("response.done"))
+        else if (EventType == TEXT("input_audio_buffer.speech_started"))
         {
-            // Handle response.done
-            TSharedPtr<FJsonObject> ResponseObject = JsonObject->GetObjectField(TEXT("response"));
-            FString Status = ResponseObject->GetStringField(TEXT("status"));
-            if (Status == TEXT("cancelled"))
+            UE_LOG(LogTemp, Log, TEXT("-------------------------------------------------> Response was cancelled due to turn_detected"));
+            // Ensure the delegate is called on the game thread
+            AsyncTask(ENamedThreads::GameThread, [this]()
             {
-                TSharedPtr<FJsonObject> StatusDetailsObject = ResponseObject->GetObjectField(TEXT("status_details"));
-                FString Reason = StatusDetailsObject->GetStringField(TEXT("reason"));
-                if (Reason == TEXT("turn_detected"))
-                {
-                    UE_LOG(LogTemp, Log, TEXT("Response was cancelled due to turn_detected"));
-                    // Ensure the delegate is called on the game thread
-                    AsyncTask(ENamedThreads::GameThread, [this]()
-                    {
-                        OnCancelAudioReceived.Broadcast(true);
-                    });
-                }
-            }
+                OnCancelAudioReceived.Broadcast(true);
+            });
         }
         else if (EventType == TEXT("error"))
         {
@@ -391,9 +369,13 @@ void UOpenAICallRealtime::SendRealtimeEvent(
     const TSharedPtr<FJsonObject>& Event, bool isAudioStreamEvent)
 {
     FString EventString;
-    TSharedRef<TJsonWriter<>> Writer =
-        TJsonWriterFactory<>::Create(&EventString);
+    TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer =
+        TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&EventString);
     FJsonSerializer::Serialize(Event.ToSharedRef(), Writer);
+
+    if (!isAudioStreamEvent) {
+        UE_LOG(LogTemp, Log, TEXT("Full JSON Event: %s"), *EventString);
+    }
 
     FString TruncatedEventString = EventString.Left(2000);
     if (EventString.Len() > 2000)

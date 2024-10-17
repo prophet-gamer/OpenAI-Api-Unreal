@@ -41,7 +41,7 @@ public:
 
     // Static factory function
     UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "OpenAI")
-    static UOpenAICallRealtime* OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice);
+    static UOpenAICallRealtime* OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice, float vadThreshold = 0.5);
 
     UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
     FOnAudioDataReceived OnAudioDataReceived;
@@ -88,6 +88,7 @@ private:
     // Instructions and voice selection
     FString SessionInstructions;
     EOAOpenAIVoices SelectedVoice;
+    float VadThreshold;
 
     // Initialize WebSocket connection
     void InitializeWebSocket();

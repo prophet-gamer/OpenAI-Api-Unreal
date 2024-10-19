@@ -83,4 +83,4 @@ This example shows you how to record and transcribe speech using Whisper v2-Larg
 ## Supported Platforms
 Windows, Mac*, Android*
 
-* Realtime Voice API mic audio capture has only been tested on Windows
+  *Realtime Voice API mic audio capture has only been tested on Windows

@@ -71,6 +71,9 @@ This example shows you how to generate a 1024x1024 image using DALL·E 2 in blue
 
 This example shows you how to record and transcribe speech using Whisper v2-Large in blueprints.
 
+## Blueprint for Realtime Voice API using the Runtime Audio Importer plugin
+![image](https://github.com/user-attachments/assets/18564ac6-d333-4566-ae83-1671c1cc2c92)
+
 ![](https://i.imgur.com/ameqz1L.png)
 ## References
 - [OpenAI's API Engine Documentation](https://beta.openai.com/docs/engines)

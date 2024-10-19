@@ -81,4 +81,6 @@ This example shows you how to record and transcribe speech using Whisper v2-Larg
 - [OpenAI's API Reference](https://beta.openai.com/docs/api-reference/completions)
 
 ## Supported Platforms
-Windows, Mac, Android
+Windows, Mac*, Android*
+
+* Realtime Voice API mic audio capture has only been tested on Windows

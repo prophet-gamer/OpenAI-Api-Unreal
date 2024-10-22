@@ -7,9 +7,9 @@
 #include "Modules/ModuleManager.h"
 #include "OpenAICallRealtime.h"
 
-UOpenAICallRealtime* UOpenAIUtils::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice)
+UOpenAICallRealtime* UOpenAIUtils::OpenAICallRealtime(FString Instructions, FString CreateResponseMessage, EOAOpenAIVoices Voice)
 {
-    return UOpenAICallRealtime::OpenAICallRealtime(Instructions, Voice);
+    return UOpenAICallRealtime::OpenAICallRealtime(Instructions, CreateResponseMessage, Voice);
 }
 
 FString UOpenAIUtils::GetVoiceString(EOAOpenAIVoices Voice)

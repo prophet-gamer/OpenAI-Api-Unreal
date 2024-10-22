@@ -51,7 +51,7 @@ public:
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "OpenAI", meta = (DisplayName = "OpenAI Realtime Call"))
-	static UOpenAICallRealtime* OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice);
+	static UOpenAICallRealtime* OpenAICallRealtime(FString Instructions, FString CreateResponseMessage, EOAOpenAIVoices Voice);
 
 	UFUNCTION(BlueprintCallable, Category = "OpenAI")
 	static float HDVectorDotProductSIMD(const FHighDimensionalVector& A, const FHighDimensionalVector& B);

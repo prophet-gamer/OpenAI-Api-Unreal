@@ -79,12 +79,21 @@ void UOpenAICallRealtime::CreateWavHeader(const TArray<uint8>& AudioData, TArray
     OutWavData.Append(AudioData);
 }
 
-UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice, float VadThreshold)
+UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(
+    FString Instructions,
+    FString CreateResponseMessage,
+    EOAOpenAIVoices Voice,
+    float VadThreshold,
+    int32 SilenceDurationMs,
+    int32 PrefixPaddingMs)
 {
     UOpenAICallRealtime* Node = NewObject<UOpenAICallRealtime>();
     Node->SessionInstructions = Instructions;
+    Node->CreateResponseMessage = CreateResponseMessage;
     Node->SelectedVoice = Voice;
     Node->VadThreshold = VadThreshold;
+    Node->SilenceDurationMs = SilenceDurationMs;
+    Node->PrefixPaddingMs = PrefixPaddingMs;
     UE_LOG(LogTemp, Log, TEXT("OpenAICallRealtime created with instructions: %s and voice: %d"), *Instructions, static_cast<int>(Voice));
     return Node;
 }
@@ -237,8 +246,8 @@ void UOpenAICallRealtime::OnWebSocketConnected()
             "turn_detection": {
                 "type": "server_vad",
                 "threshold": %s,
-                "prefix_padding_ms": 300,
-                "silence_duration_ms": 200
+                "prefix_padding_ms": %d,
+                "silence_duration_ms": %d
             },
             "tools": [],
             "tool_choice": "auto"
@@ -246,15 +255,15 @@ void UOpenAICallRealtime::OnWebSocketConnected()
     })"),
         *SessionInstructions.ReplaceCharWithEscapedChar(),
         *UOpenAIUtils::GetVoiceString(SelectedVoice),
-        *FormattedThreshold
+        *FormattedThreshold,
+        PrefixPaddingMs,
+        SilenceDurationMs
     );
 
     UE_LOG(LogTemp, Log, TEXT("Sending Session Update Event: %s"), *SessionUpdateEvent);
     WebSocket->Send(SessionUpdateEvent);
 
-    // Create response
-    bool createResponse = true;
-    if (createResponse) {
+    if (!CreateResponseMessage.IsEmpty()) {
         // Construct the modalities array as a string
         FString ModalitiesString = TEXT("\"text\", \"audio\"");  // Adjust if needed
 
@@ -266,13 +275,15 @@ void UOpenAICallRealtime::OnWebSocketConnected()
                 "modalities": [%s]
             }
         })"),
-            *SessionInstructions.ReplaceCharWithEscapedChar(),
+            *CreateResponseMessage.ReplaceCharWithEscapedChar(),
             *ModalitiesString
         );
 
         UE_LOG(LogTemp, Log, TEXT("Sending Response Create Event: %s"), *ResponseCreateEvent);
         WebSocket->Send(ResponseCreateEvent);
         UE_LOG(LogTemp, Log, TEXT("Response create event sent"));
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("No create response message provided, skipping response create event"));
     }
 }
 

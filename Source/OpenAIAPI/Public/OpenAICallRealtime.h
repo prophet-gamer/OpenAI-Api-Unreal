@@ -30,7 +30,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FOnRealtimeCancelAudioReceivedPin,
     bool, bWasCancelled);
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class OPENAIAPI_API UOpenAICallRealtime : public UBlueprintAsyncActionBase
 {
     GENERATED_BODY()
@@ -38,21 +38,19 @@ class OPENAIAPI_API UOpenAICallRealtime : public UBlueprintAsyncActionBase
 public:
     UOpenAICallRealtime();
     ~UOpenAICallRealtime();
-
+    
     // Static factory function
     UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "OpenAI")
-    static UOpenAICallRealtime* OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice, float vadThreshold = 0.5);
+    static UOpenAICallRealtime* OpenAICallRealtime(
+        FString Instructions,
+        FString CreateResponseMessage,
+        EOAOpenAIVoices Voice,
+        float vadThreshold = 0.5,
+        int32 SilenceDurationMs = 500,
+        int32 PrefixPaddingMs = 300);
 
     UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
     FOnAudioDataReceived OnAudioDataReceived;
-
-    // Override Activate function
-    virtual void Activate() override;
-
-    // Stop the realtime session
-    UFUNCTION(BlueprintCallable, Category = "OpenAI")
-    void StopRealtimeSession();
-    virtual void BeginDestroy() override;
 
     // Delegate called when a text response is received
     UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
@@ -61,17 +59,42 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
     FOnRealtimeCancelAudioReceivedPin OnCancelAudioReceived;
 
+    UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
+
     // Delegate called when an audio buffer is captured
     //UPROPERTY(BlueprintAssignable, Category = "OpenAI|Realtime")
     FOnAudioBufferReceived OnAudioBufferReceived;
+
+    // Override Activate function
+    virtual void Activate() override;
+
+    // Stop the realtime session
+    UFUNCTION(BlueprintCallable, Category = "OpenAI")
+    void StopRealtimeSession();
+
+    // Cancel the realtime session manually (will broadcast a cancellation event)
+    UFUNCTION(BlueprintCallable, Category = "OpenAI")
+    void CancelRealtimeSession();
+
+    // Set a timer (in seconds) after which the socket will be closed.
+    // The WorldContextObject is used to access the timer manager.
+    UFUNCTION(BlueprintCallable, Category = "OpenAI", meta = (WorldContext = "WorldContextObject"))
+    void SetSocketCloseTimer(UObject* WorldContextObject, float DelaySeconds);
+
+    virtual void BeginDestroy() override;
 
 private:
     bool bHasSentWavHeader = false;
     int32 numberOfSentAudioBuffers = 0;
     bool bSessionStopped = false;
 
+    FTimerHandle SocketCloseTimerHandle;
     // WebSocket connection
     TSharedPtr<IWebSocket> WebSocket;
+
+    static TWeakObjectPtr<UOpenAICallRealtime> CurrentSession;
+
+    void OnSocketCloseTimerExpired();
 
     // Audio capture component
     UPROPERTY()
@@ -87,8 +110,11 @@ private:
 
     // Instructions and voice selection
     FString SessionInstructions;
+    FString CreateResponseMessage;
     EOAOpenAIVoices SelectedVoice;
     float VadThreshold;
+    int32 SilenceDurationMs;
+    int32 PrefixPaddingMs;
 
     // Initialize WebSocket connection
     void InitializeWebSocket();
@@ -113,6 +139,8 @@ private:
     // Handle captured audio buffer
     UFUNCTION()
     void OnAudioBufferCaptured(const TArray<float>& AudioBuffer);
+
+    
 
     void CreateWavHeader(const TArray<uint8>& AudioData, TArray<uint8>& OutWavData, uint32 SampleRate = 24000, uint16 NumChannels = 1, uint16 BitsPerSample = 16);
 

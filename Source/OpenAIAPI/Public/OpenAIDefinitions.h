@@ -11,7 +11,12 @@ enum class EOAOpenAIVoices : uint8
 {
     ALLOY = 0 UMETA(DisplayName = "Alloy"),
     ECHO = 1 UMETA(DisplayName = "Echo"),
-    SHIMMER = 2 UMETA(DisplayName = "Shimmer")
+    SHIMMER = 2 UMETA(DisplayName = "Shimmer"),
+	BALLAD = 3 UMETA(DisplayName = "Ballad"),
+	ASH = 4 UMETA(DisplayName = "Ash"),
+	CORAL = 5 UMETA(DisplayName = "Coral"),
+	SAGE = 6 UMETA(DisplayName = "Sage"),
+	VERSE = 7 UMETA(DisplayName = "Verse")
 };
 
 UENUM(BlueprintType)
@@ -83,7 +88,12 @@ enum class EOASpeechVoice : uint8
 {
 	ALLOY = 0 UMETA(ToolTip = "Generates 256x256 images. This settings takes the least amount of time to generate images."),
 	ECHO = 1 UMETA(ToolTip = "Generates 512x512 images. This setting takes a moderate amount of time to generate images."),
-	SHIMMER = 2 UMETA(ToolTip = "Generates 1024x1024 images. This setting takes the longest amount of time to generate images.")
+	SHIMMER = 2 UMETA(ToolTip = "Generates 1024x1024 images. This setting takes the longest amount of time to generate images."),
+	BALLAD = 3 UMETA(ToolTip = "Generates 1024x1024 images. This setting takes the longest amount of time to generate images."),
+	ASH = 4 UMETA(DisplayName = "Ash"),
+	CORAL = 5 UMETA(DisplayName = "Coral"),
+	SAGE = 6 UMETA(DisplayName = "Sage"),
+	VERSE = 7 UMETA(DisplayName = "Verse")
 };
 
 // Structs for GPT

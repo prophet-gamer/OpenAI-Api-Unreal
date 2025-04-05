@@ -27,15 +27,25 @@ struct FWavHeader
     uint32 Subchunk2Size;
 };
 
+TWeakObjectPtr<UOpenAICallRealtime> UOpenAICallRealtime::CurrentSession = nullptr;
+
 UOpenAICallRealtime::UOpenAICallRealtime()
+    : AudioCaptureComponent(nullptr),
+    AudioComponent(nullptr),
+    GeneratedSoundWave(nullptr),
+    //AudioComponent(nullptr),
+    //WebSocket(nullptr),  // Other pointer variables initialized to nullptr
+    bHasSentWavHeader(false),
+    numberOfSentAudioBuffers(0),
+    bSessionStopped(false)
 {
-    AudioCaptureComponent = nullptr;
-    AudioComponent = nullptr;
     UE_LOG(LogTemp, Log, TEXT("UOpenAICallRealtime constructed"));
 }
 
+
 UOpenAICallRealtime::~UOpenAICallRealtime()
 {
+
     UE_LOG(LogTemp, Log, TEXT("UOpenAICallRealtime destructor called"));
     // Ensure all references are cleared
     AudioCaptureComponent = nullptr;
@@ -79,15 +89,29 @@ void UOpenAICallRealtime::CreateWavHeader(const TArray<uint8>& AudioData, TArray
     OutWavData.Append(AudioData);
 }
 
-UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(const FString& Instructions, EOAOpenAIVoices Voice, float VadThreshold)
+UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(
+    FString Instructions,
+    FString CreateResponseMessage,
+    EOAOpenAIVoices Voice,
+    float VadThreshold,
+    int32 SilenceDurationMs,
+    int32 PrefixPaddingMs)
 {
+    if (CurrentSession.IsValid()) { CurrentSession->StopRealtimeSession(); }
     UOpenAICallRealtime* Node = NewObject<UOpenAICallRealtime>();
     Node->SessionInstructions = Instructions;
+    Node->CreateResponseMessage = CreateResponseMessage;
     Node->SelectedVoice = Voice;
     Node->VadThreshold = VadThreshold;
+    Node->SilenceDurationMs = SilenceDurationMs;
+    Node->PrefixPaddingMs = PrefixPaddingMs;
+
+    CurrentSession = Node;
+
     UE_LOG(LogTemp, Log, TEXT("OpenAICallRealtime created with instructions: %s and voice: %d"), *Instructions, static_cast<int>(Voice));
     return Node;
 }
+
 
 void UOpenAICallRealtime::Activate()
 {
@@ -98,6 +122,16 @@ void UOpenAICallRealtime::Activate()
 void UOpenAICallRealtime::StartRealtimeSession()
 {
     UE_LOG(LogTemp, Log, TEXT("StartRealtimeSession called"));
+
+    // If a WebSocket connection already exists, close it before creating a new one.
+    if (WebSocket.IsValid())
+    {
+        UE_LOG(LogTemp, Log, TEXT("Closing existing WebSocket before starting a new session."));
+        WebSocket->Close();
+        WebSocket.Reset();
+        StopRealtimeSession();
+    }
+
     InitializeWebSocket();
 
     // Create and initialize the audio capture component
@@ -132,10 +166,6 @@ void UOpenAICallRealtime::StopRealtimeSession()
         return;
     }
 
-    bSessionStopped = true;
-
-    UE_LOG(LogTemp, Log, TEXT("StopRealtimeSession called"));
-
     if (!IsInGameThread())
     {
         UE_LOG(LogTemp, Warning, TEXT("StopRealtimeSession called off GameThread. Executing on GameThread."));
@@ -146,6 +176,10 @@ void UOpenAICallRealtime::StopRealtimeSession()
         return;
     }
 
+
+    bSessionStopped = true;
+
+    UE_LOG(LogTemp, Log, TEXT("StopRealtimeSession called"));
     // Stop capturing audio
     if (IsValid(AudioCaptureComponent))
     {
@@ -168,6 +202,51 @@ void UOpenAICallRealtime::StopRealtimeSession()
     UE_LOG(LogTemp, Log, TEXT("Realtime session stopped successfully"));
 }
 
+void UOpenAICallRealtime::CancelRealtimeSession() {
+    UE_LOG(LogTemp, Log, TEXT("CancelRealtimeSession called manually"));
+
+    // Ensure this runs on the game thread
+    if (!IsInGameThread())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("CancelRealtimeSession called off GameThread. Executing on GameThread."));
+        AsyncTask(ENamedThreads::GameThread, [this]()
+            {
+                CancelRealtimeSession();
+            });
+        return;
+    }
+
+    if (bSessionStopped)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("CancelRealtimeSession: Session already stopped or cancelled"));
+        return;
+    }
+
+    // Broadcast manual cancellation event so Blueprints can react
+    OnCancelAudioReceived.Broadcast(true);
+
+    // Now perform the same cleanup as in StopRealtimeSession
+    StopRealtimeSession();
+}
+
+void UOpenAICallRealtime::SetSocketCloseTimer(UObject* WorldContextObject, float DelaySeconds) {
+    if (!WorldContextObject) {
+        UE_LOG(LogTemp, Warning, TEXT("SetSocketCloseTimer: WorldContextObject is null")); return;
+    }
+    UWorld* World = GEngine->GetWorldFromContextObjectChecked(WorldContextObject); 
+    if (!World) {
+        UE_LOG(LogTemp, Warning, TEXT("SetSocketCloseTimer: Could not get world from context object")); return;
+    }
+
+    // Optionally, clear any previous timer
+    World->GetTimerManager().ClearTimer(SocketCloseTimerHandle);
+
+    UE_LOG(LogTemp, Log, TEXT("Setting socket close timer for %f seconds"), DelaySeconds);
+    World->GetTimerManager().SetTimer(SocketCloseTimerHandle, this, &UOpenAICallRealtime::OnSocketCloseTimerExpired, DelaySeconds, false);
+}
+
+void UOpenAICallRealtime::OnSocketCloseTimerExpired() { UE_LOG(LogTemp, Log, TEXT("Socket close timer expired, stopping realtime session")); StopRealtimeSession(); }
+
 void UOpenAICallRealtime::InitializeWebSocket()
 {
     UE_LOG(LogTemp, Log, TEXT("InitializeWebSocket called"));
@@ -178,9 +257,9 @@ void UOpenAICallRealtime::InitializeWebSocket()
         OnResponseReceived.Broadcast(TEXT("API key is not set"), false);
         return;
     }
-
+    //gpt-4o-realtime-preview-2024-10-01
     FString Url = TEXT("wss://api.openai.com/v1/realtime")
-                  TEXT("?model=gpt-4o-realtime-preview-2024-10-01");
+                  TEXT("?model=gpt-4o-realtime-preview-2024-12-17");
     UE_LOG(LogTemp, Log, TEXT("WebSocket URL: %s"), *Url);
 
     // Create a TMap for headers
@@ -237,8 +316,8 @@ void UOpenAICallRealtime::OnWebSocketConnected()
             "turn_detection": {
                 "type": "server_vad",
                 "threshold": %s,
-                "prefix_padding_ms": 300,
-                "silence_duration_ms": 200
+                "prefix_padding_ms": %d,
+                "silence_duration_ms": %d
             },
             "tools": [],
             "tool_choice": "auto"
@@ -246,15 +325,15 @@ void UOpenAICallRealtime::OnWebSocketConnected()
     })"),
         *SessionInstructions.ReplaceCharWithEscapedChar(),
         *UOpenAIUtils::GetVoiceString(SelectedVoice),
-        *FormattedThreshold
+        *FormattedThreshold,
+        PrefixPaddingMs,
+        SilenceDurationMs
     );
 
     UE_LOG(LogTemp, Log, TEXT("Sending Session Update Event: %s"), *SessionUpdateEvent);
     WebSocket->Send(SessionUpdateEvent);
 
-    // Create response
-    bool createResponse = true;
-    if (createResponse) {
+    if (!CreateResponseMessage.IsEmpty()) {
         // Construct the modalities array as a string
         FString ModalitiesString = TEXT("\"text\", \"audio\"");  // Adjust if needed
 
@@ -266,13 +345,15 @@ void UOpenAICallRealtime::OnWebSocketConnected()
                 "modalities": [%s]
             }
         })"),
-            *SessionInstructions.ReplaceCharWithEscapedChar(),
+            *CreateResponseMessage.ReplaceCharWithEscapedChar(),
             *ModalitiesString
         );
 
         UE_LOG(LogTemp, Log, TEXT("Sending Response Create Event: %s"), *ResponseCreateEvent);
         WebSocket->Send(ResponseCreateEvent);
         UE_LOG(LogTemp, Log, TEXT("Response create event sent"));
+    } else {
+        UE_LOG(LogTemp, Log, TEXT("No create response message provided, skipping response create event"));
     }
 }
 
@@ -404,6 +485,7 @@ void UOpenAICallRealtime::OnAudioBufferCaptured(
 void UOpenAICallRealtime::SendAudioDataToAPI(
     const TArray<float>& AudioBuffer)
 {
+
     UE_LOG(LogTemp, Log, TEXT("Audio out -> %d samples"), AudioBuffer.Num());
     // Convert float audio data to PCM16
     TArray<uint8> PCM16Data;
@@ -415,6 +497,7 @@ void UOpenAICallRealtime::SendAudioDataToAPI(
         int16 IntSample = (int16)(Sample * 32767.0f);
         PCM16Data[i * 2] = IntSample & 0xFF;
         PCM16Data[i * 2 + 1] = (IntSample >> 8) & 0xFF;
+        //UE_LOG(LogTemp, Log, TEXT("Sample"), Sample);
     }
 
     // Base64 encode the PCM16 data

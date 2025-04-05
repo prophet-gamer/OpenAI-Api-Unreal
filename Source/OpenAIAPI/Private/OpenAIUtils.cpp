@@ -7,8 +7,11 @@
 #include "Modules/ModuleManager.h"
 #include "OpenAICallRealtime.h"
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 84098f5661dbf475c0e73e58b73fa0e894b8df9e
 UOpenAICallRealtime* UOpenAIUtils::OpenAICallRealtime(FString Instructions, FString CreateResponseMessage, EOAOpenAIVoices Voice)
 {
     return UOpenAICallRealtime::OpenAICallRealtime(Instructions, CreateResponseMessage, Voice);

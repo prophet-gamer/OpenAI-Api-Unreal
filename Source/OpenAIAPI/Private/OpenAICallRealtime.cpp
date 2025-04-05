@@ -105,9 +105,12 @@ UOpenAICallRealtime* UOpenAICallRealtime::OpenAICallRealtime(
     Node->VadThreshold = VadThreshold;
     Node->SilenceDurationMs = SilenceDurationMs;
     Node->PrefixPaddingMs = PrefixPaddingMs;
+<<<<<<< HEAD
 
     CurrentSession = Node;
 
+=======
+>>>>>>> 84098f5661dbf475c0e73e58b73fa0e894b8df9e
     UE_LOG(LogTemp, Log, TEXT("OpenAICallRealtime created with instructions: %s and voice: %d"), *Instructions, static_cast<int>(Voice));
     return Node;
 }

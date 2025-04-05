@@ -44,6 +44,10 @@ public:
     static UOpenAICallRealtime* OpenAICallRealtime(
         FString Instructions,
         FString CreateResponseMessage,
+<<<<<<< HEAD
+=======
+
+>>>>>>> 84098f5661dbf475c0e73e58b73fa0e894b8df9e
         EOAOpenAIVoices Voice,
         float vadThreshold = 0.5,
         int32 SilenceDurationMs = 500,
